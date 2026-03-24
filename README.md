@@ -196,3 +196,8 @@ Log output looks like:
 - [ ] Timeouts — `conn.settimeout(5)`
 - [ ] Auth — parse and validate `Authorization` header
 - [ ] Caching — `Cache-Control` and `ETag` headers, return `304` when unchanged
+
+## Demo
+
+![pylon-demo](https://github.com/user-attachments/assets/9359d925-d44d-48e6-8df7-39ed0b9b716f)
+
