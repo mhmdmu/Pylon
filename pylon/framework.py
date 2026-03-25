@@ -1,6 +1,7 @@
 import logging
 import socket
 
+from .cors import CorsConfig
 from .exceptions import BadRequest, HttpError, MethodNotAllowed, NotFound
 from .msg_type import Request, Response
 from .status import HttpStatus
@@ -152,9 +153,12 @@ class TCPServer:
 
 
 class HttpServer:
-    def __init__(self, host: str = "localhost", port: int = 8080) -> None:
+    def __init__(
+        self, host: str = "localhost", port: int = 8080, cors: CorsConfig | None = None
+    ) -> None:
         self._tcp = TCPServer(host, port)
         self._routes: dict[str, list] = {}
+        self.cors = cors
 
     def route(self, method: str, path: str):
         """Decorator to register a route handler."""
@@ -182,9 +186,13 @@ class HttpServer:
         request = _parse_request(raw_header, conn)
 
         try:
-            handler, params = _resolve(self._routes, request)
-            request.path_params = params
-            response = handler(request)
+            # Preflight request
+            if request.method == "OPTIONS":
+                response = self._handle_preflight(request)
+            else:
+                handler, params = _resolve(self._routes, request)
+                request.path_params = params
+                response = handler(request)
         except HttpError as err:
             log.warning(f"HTTP error {err.status.code}: {err.message}")
             response = Response(err.status, body=err.message)
@@ -203,4 +211,47 @@ class HttpServer:
             f"{addr[0]}:{addr[1]} — {request.method} {request.path} {response.status}"
         )
 
+        response = self._apply_cors_headers(request, response)
+
         return response.build()
+
+    def _apply_cors_headers(self, request: Request, response: Response) -> Response:
+        # CORS is not configured
+        if not self.cors:
+            return response
+
+        cors_headers = {}
+        origin = request.headers.get("Origin", None)
+
+        # No Origin header = no browser = no CORS
+        if not origin:
+            return response
+
+        if "*" in self.cors.allow_origins or origin in self.cors.allow_origins:
+            cors_headers["Access-Control-Allow-Origin"] = (
+                "*" if "*" in self.cors.allow_origins else origin
+            )
+
+        if self.cors.allow_credentials:
+            cors_headers["Access-Control-Allow-Credentials"] = "true"
+
+        response.headers |= cors_headers  # merge cors headers
+
+        return response
+
+    def _handle_preflight(self, request) -> Response | None:
+        origin = request.headers.get("Origin", None)
+        if not origin:
+            return Response(HttpStatus.BAD_REQUEST, body="Missing Origin header.")
+
+        # CORS is not configured
+        if not self.cors:
+            return Response(HttpStatus.METHOD_NOT_ALLOWED)
+
+        headers = {}
+
+        headers["Access-Control-Allow-Methods"] = ", ".join(self.cors.allow_methods)
+        headers["Access-Control-Allow-Headers"] = ", ".join(self.cors.allow_headers)
+        headers["Access-Control-Allow-Max-Age"] = self.cors.max_age
+
+        return Response(HttpStatus.NO_CONTENT, headers=headers)
