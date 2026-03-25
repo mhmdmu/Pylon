@@ -191,7 +191,7 @@ Log output looks like:
 
 ## What's next
 
-- [x] CORS — handle preflight and inject `Access-Control-*` headers
+- [ ] CORS — handle preflight and inject `Access-Control-*` headers
 - [ ] Concurrency — `threading.Thread` per connection
 - [ ] Timeouts — `conn.settimeout(5)`
 - [ ] Auth — parse and validate `Authorization` header

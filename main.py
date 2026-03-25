@@ -1,11 +1,8 @@
 from pylon import HttpServer, HttpStatus, Request, Response, configure_logging
-from pylon.cors import CorsConfig
 
 configure_logging()  # enable logging
 
-cors = CorsConfig(allow_origins="*")
-
-app = HttpServer(host="localhost", port=8080, cors=cors)
+app = HttpServer(host="localhost", port=8080)
 
 # In-memory database
 users_db = {
