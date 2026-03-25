@@ -25,4 +25,5 @@ class CorsConfig:
             raise ValueError("max_age must be non-negative")
 
         # Normalize origins; cleaner checks
-        self.allow_origins = list(self.allow_origins)
+        if not isinstance(self.allow_origins, list):
+            self.allow_origins = [self.allow_origins]
