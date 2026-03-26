@@ -24,6 +24,7 @@ pylon/                  ← repo root
 │   ├── msg_type.py     ← Request and Response
 │   ├── status.py       ← HttpStatus enum
 │   └── exceptions.py   ← HttpError and subclasses
+├── tests/...           ← module for basic unit/integration tests
 ├── main.py             ← sample app with a basic user CRUD API
 ├── test_pylon.sh       ← end-to-end tests
 └── README.md
@@ -192,12 +193,11 @@ Log output looks like:
 ## What's next
 
 - [x] CORS — handle preflight and inject `Access-Control-*` headers
+- [x] Caching — `Cache-Control` and `ETag` headers, return `304` when unchanged
 - [ ] Concurrency — `threading.Thread` per connection
 - [ ] Timeouts — `conn.settimeout(5)`
 - [ ] Auth — parse and validate `Authorization` header
-- [ ] Caching — `Cache-Control` and `ETag` headers, return `304` when unchanged
 
 ## Demo
 
 ![pylon-demo](https://github.com/user-attachments/assets/9359d925-d44d-48e6-8df7-39ed0b9b716f)
-

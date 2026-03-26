@@ -1,5 +1,6 @@
 import logging
 import socket
+from hashlib import sha1
 
 from .cors import CorsConfig
 from .exceptions import BadRequest, HttpError, MethodNotAllowed, NotFound
@@ -207,11 +208,12 @@ class HttpServer:
                 HttpStatus.INTERNAL_SERVER_ERROR, body="Internal Server Error"
             )
 
+        response = self._apply_cache_headers(request, response)
+        response = self._apply_cors_headers(request, response)
+
         log.info(
             f"{addr[0]}:{addr[1]} — {request.method} {request.path} {response.status}"
         )
-
-        response = self._apply_cors_headers(request, response)
 
         return response.build()
 
@@ -255,3 +257,27 @@ class HttpServer:
         headers["Access-Control-Allow-Max-Age"] = self.cors.max_age
 
         return Response(HttpStatus.NO_CONTENT, headers=headers)
+
+    # Cache support
+    def _apply_cache_headers(self, request: Request, response: Response) -> Response:
+        # Cache is not configured
+        if not response.cache_config:
+            return response
+
+        config = response.cache_config
+        cache_headers = {"Cache-Control": config.build_cache_header()}
+
+        if not config.no_store:
+            hashed_val = sha1(response.body.encode()).hexdigest()
+            cache_headers["ETag"] = f'"{hashed_val}"'
+
+            request_etag = request.headers.get("If-None-Match", None)
+
+            if request_etag:
+                # NOTE: weak ETags (W/"...") are not supported
+                if request_etag.strip('"') == hashed_val:
+                    return Response(HttpStatus.NOT_MODIFIED, headers=cache_headers)
+
+        response.headers |= cache_headers
+
+        return response
