@@ -1,6 +1,7 @@
 import json
 from email.utils import formatdate
 
+from .cache import CacheConfig
 from .status import HttpStatus
 
 
@@ -31,6 +32,7 @@ class Response:
         self.headers = headers or {}
         self.body = body
         self.http_version = http_version
+        self.cache_config = None
 
     def build(self) -> bytes:
         encoded_body = self.body.encode()
@@ -39,12 +41,18 @@ class Response:
 
         return f"{status_line}\r\n{headers}\r\n".encode() + encoded_body
 
+    def set_cache_config(self, config: CacheConfig) -> "Response":
+        self.cache_config = config
+        return self
+
     def _build_headers(self, content_length: int) -> str:
         default_headers = {
             "Date": formatdate(timeval=None, localtime=False, usegmt=True),
-            "Content-Length": content_length,
             "Server": "Pylon/1.0",
         }
+
+        if content_length > 0:
+            default_headers["Content-Length"] = str(content_length)
 
         merged = default_headers | self.headers
         return "".join(f"{k}: {v}\r\n" for k, v in merged.items())
