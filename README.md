@@ -194,8 +194,8 @@ Log output looks like:
 
 - [x] CORS — handle preflight and inject `Access-Control-*` headers
 - [x] Caching — `Cache-Control` and `ETag` headers, return `304` when unchanged
-- [ ] Concurrency — `threading.Thread` per connection
-- [ ] Timeouts — `conn.settimeout(5)`
+- [x] Concurrency — `threading.Thread` per connection
+- [x] Timeouts — `conn.settimeout(5)`
 - [ ] Auth — parse and validate `Authorization` header
 
 ## Demo

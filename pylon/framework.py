@@ -1,5 +1,6 @@
 import logging
 import socket
+import threading
 from hashlib import sha1
 
 from .cors import CorsConfig
@@ -122,9 +123,10 @@ def _resolve(routes: dict, request: Request) -> tuple:
 
 
 class TCPServer:
-    def __init__(self, host: str, port: int) -> None:
+    def __init__(self, host: str, port: int, timeout: int) -> None:
         self.host = host
         self.port = port
+        self.timeout = timeout
 
     def listen(self, handler) -> None:
         """Accept connections in a loop, call handler(conn, addr) for each."""
@@ -134,8 +136,12 @@ class TCPServer:
             while True:
                 conn, addr = server.accept()
                 log.debug(f"Connection from {addr[0]}:{addr[1]}")
-                with conn:
-                    conn.sendall(handler(conn, addr))
+
+                threading.Thread(
+                    target=self._handle_connection,
+                    args=(conn, addr, handler),
+                    daemon=True,
+                ).start()
 
     def read_header(self, conn: socket.socket) -> bytes:
         """Read raw bytes from the socket until the HTTP header terminator."""
@@ -147,6 +153,15 @@ class TCPServer:
             raw += chunk
         return raw
 
+    def _handle_connection(self, conn, addr, handler):
+        conn.settimeout(self.timeout)
+
+        try:
+            with conn:
+                conn.sendall(handler(conn, addr))
+        except TimeoutError:
+            log.warning(f"Timeout for {addr[0]}:{addr[1]}")
+
 
 # ---------------------------------------------------------------------------
 # HttpServer — HTTP layer
@@ -155,9 +170,13 @@ class TCPServer:
 
 class HttpServer:
     def __init__(
-        self, host: str = "localhost", port: int = 8080, cors: CorsConfig | None = None
+        self,
+        host: str = "localhost",
+        port: int = 8080,
+        cors: CorsConfig | None = None,
+        timeout: int = 5,
     ) -> None:
-        self._tcp = TCPServer(host, port)
+        self._tcp = TCPServer(host, port, timeout)
         self._routes: dict[str, list] = {}
         self.cors = cors
 
