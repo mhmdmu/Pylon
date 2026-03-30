@@ -80,6 +80,30 @@ def test_304_on_matching_etag():
         print("304 returned with no body - PASSED")
 
 
+def test_concurrency():
+    #
+    # Sending 3 requests each takes ~2 seconds, must take 3 seconds too - concurrency.
+    #
+    url = "http://localhost:9090/concurrent"
+    req1 = threading.Thread(target=urllib.request.urlopen, args=(url,))
+    req2 = threading.Thread(target=urllib.request.urlopen, args=(url,))
+    req3 = threading.Thread(target=urllib.request.urlopen, args=(url,))
+
+    req1.start()
+    req2.start()
+    req3.start()
+
+    req1.join()
+    req2.join()
+    req3.join()
+
+
+@app.route("GET", "/concurrent")
+def concurrent_router(_):
+    time.sleep(2)
+    return Response.text(content="Concurrent response")
+
+
 #
 # Runner
 #
@@ -92,4 +116,12 @@ def run():
     print("Test Case #1 PASSED")
     test_304_on_matching_etag()
     print("Test Case #2 PASSED")
+
+    print("\n==== Test Concurrency ====")
+    st = time.time()
+    test_concurrency()
+    elapsed_time = time.time() - st
+    assert elapsed_time < 3, f"FAILED - Took {elapsed_time} seconds"
+    print("Test Case #3 PASSED - Concurrency")
+
     print("All integration tests passed.")
