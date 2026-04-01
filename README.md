@@ -21,6 +21,7 @@ pylon/                  ← repo root
 ├── pylon/              ← the package
 │   ├── __init__.py
 │   ├── framework.py    ← TCPServer and HttpServer
+│   ├── middleware.py   ← middleware pipeline and built-in middlewares
 │   ├── msg_type.py     ← Request and Response
 │   ├── status.py       ← HttpStatus enum
 │   └── exceptions.py   ← HttpError and subclasses
@@ -54,18 +55,34 @@ There are two layers and they don't know about each other:
 
 **TCPServer** handles the socket — it opens a connection, accepts clients, reads raw bytes until it sees `\r\n\r\n` (the HTTP header terminator), and passes everything up. It has no idea what HTTP is.
 
-**HttpServer** handles everything HTTP — it takes those raw bytes, parses them into a `Request`, matches the path against registered routes, calls the right handler, and builds a `Response` to send back.
+**HttpServer** handles everything HTTP — it takes those raw bytes, parses them into a `Request`, runs middleware, matches the path against registered routes, calls the handler, then passes the `Response` back through middleware before sending it.
+
+The request lifecycle is:
+
+before middleware → handler → after middleware
 
 Each request gets a fresh `Request` object. Nothing is shared between connections.
 
 ## Usage
 
 ```python
-from pylon import HttpServer, Request, Response, HttpStatus, configure_logging
+from pylon import (
+    HttpServer,
+    Request,
+    Response,
+    HttpStatus,
+    configure_logging,
+    CorsConfig,
+    CorsMiddleware,
+)
 
 configure_logging()
 
-app = HttpServer(host="localhost", port=8080)
+app = HttpServer()
+
+# register middleware
+cors = CorsConfig(allow_origins=["http://localhost:3000"])
+app.middleware.after(CorsMiddleware(cors))
 
 
 @app.route("GET", "/")
@@ -116,6 +133,39 @@ GET /users?role=admin&active
 ```python
 req.query_params["role"]    # "admin"
 req.query_params["active"]  # True  (flag param, no value)
+```
+
+## Middleware
+
+Pylon supports middleware for handling cross-cutting concerns like CORS, logging, or authentication.
+
+There are two stages:
+
+* `before` — runs before the route handler (can modify the request)
+* `after` — runs after the handler (can modify the response)
+
+### Registering middleware
+
+```python
+@app.middleware.before
+def log_request(req: Request) -> Request:
+    print(req.method, req.path)
+    return req
+
+
+@app.middleware.after
+def add_header(req: Request, res: Response) -> Response:
+    res.headers["X-App"] = "pylon"
+    return res
+```
+
+### Built-in CORS middleware
+
+```python
+from pylon import CorsConfig, CorsMiddleware
+
+cors = CorsConfig(allow_origins=["*"])
+app.middleware.after(CorsMiddleware(cors))
 ```
 
 ## Request
