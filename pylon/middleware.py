@@ -1,3 +1,4 @@
+from .exceptions import Unauthorized
 from .msg_type import Request, Response
 from .status import HttpStatus
 
@@ -54,3 +55,22 @@ class CorsMiddleware:
         headers["Access-Control-Allow-Max-Age"] = self.config.max_age
 
         return Response(HttpStatus.NO_CONTENT, headers=headers)
+
+
+class AuthMiddleware:
+    def __init__(self, verify) -> None:
+        self.verify = verify
+
+    def __call__(self, request: Request) -> Request:
+        auth_header = request.headers.get("Authorization", "")
+
+        if not auth_header:
+            raise Unauthorized("Missing Authorization header")
+        if not auth_header.startswith("Bearer "):
+            raise Unauthorized("Invalid authorization scheme")
+
+        token = auth_header[len("Bearer ") :]
+
+        request.user = self.verify(token)
+
+        return request

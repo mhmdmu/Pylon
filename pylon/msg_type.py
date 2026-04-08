@@ -15,6 +15,7 @@ class Request:
         self.body: str | None = None
         self.path_params: dict[str, str] = {}
         self.query_params: dict[str, str | bool] = {}
+        self.user = None  # authenticated user
 
     def __str__(self) -> str:
         return self.raw_request.decode(errors="replace")

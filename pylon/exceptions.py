@@ -21,3 +21,8 @@ class NotFound(HttpError):
 class MethodNotAllowed(HttpError):
     def __init__(self, message: str = "") -> None:
         super().__init__(HttpStatus.METHOD_NOT_ALLOWED, message)
+
+
+class Unauthorized(HttpError):
+    def __init__(self, message: str = "Authentication failed") -> None:
+        super().__init__(HttpStatus.UNAUTHORIZED, message)

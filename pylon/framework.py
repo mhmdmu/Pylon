@@ -112,7 +112,7 @@ def _resolve(routes: dict, request: Request) -> tuple:
     for route in method_routes:
         matched, params = _match_route(route["pattern"], request.path)
         if matched:
-            return route["handler"], params
+            return route["handler"], params, route["protected"]
 
     raise NotFound(f"Resource {request.path} not found")
 
@@ -180,8 +180,9 @@ class HttpServer:
         self._before_middlewares = []
         self._after_middlewares = []
         self.middleware = MiddlewarePipeline(self)
+        self._auth_middleware = None
 
-    def route(self, method: str, path: str):
+    def route(self, method: str, path: str, protected: bool = False):
         """Decorator to register a route handler."""
         method = method.upper()
 
@@ -189,7 +190,7 @@ class HttpServer:
             log.info(f"Registering route: {method} {path} -> {handler.__name__}")
 
             self._routes.setdefault(method, []).append(
-                {"pattern": path, "handler": handler}
+                {"pattern": path, "handler": handler, "protected": protected}
             )
             return handler
 
@@ -197,6 +198,9 @@ class HttpServer:
 
     def run(self) -> None:
         self._tcp.listen(self._handle)
+
+    def auth(self, middleware) -> None:
+        self._auth_middleware = middleware
 
     # ------------------------------------------------------------------
     # Internal
@@ -207,13 +211,18 @@ class HttpServer:
         request = _parse_request(raw_header, conn)
         response = None
 
-        # Run before middlewares
-        for stage in self._before_middlewares:
-            request = stage(request)
-
         try:
-            handler, params = _resolve(self._routes, request)
+            # Run before middlewares
+            for stage in self._before_middlewares:
+                request = stage(request)
+
+            handler, params, protected = _resolve(self._routes, request)
             request.path_params = params
+
+            # Authentication
+            if protected and self._auth_middleware:
+                request = self._auth_middleware(request)
+
             response = handler(request)
         except MethodNotAllowed:
             # Preflight request

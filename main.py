@@ -1,4 +1,5 @@
 from pylon import (
+    AuthMiddleware,
     CorsConfig,
     CorsMiddleware,
     HttpServer,
@@ -15,6 +16,8 @@ cors = CorsConfig(allow_origins=["http://localhost:3000", "https://example.com"]
 app = HttpServer()
 
 app.middleware.after(CorsMiddleware(cors))
+
+app.auth(AuthMiddleware(lambda _: {...}))
 
 # In-memory database
 users_db = {
@@ -38,7 +41,7 @@ def list_users(req: Request) -> Response:
     return Response.json(list(users_db.values()))
 
 
-@app.route("GET", "/users/{id}")
+@app.route("GET", "/users/{id}", protected=True)
 def get_user(req: Request) -> Response:
     user_id = req.path_params["id"]
     user = users_db.get(user_id)
