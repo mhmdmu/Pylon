@@ -1,6 +1,8 @@
 from pylon import (
+    AuthMiddleware,
     CorsConfig,
     CorsMiddleware,
+    Forbidden,
     HttpServer,
     HttpStatus,
     Request,
@@ -15,6 +17,8 @@ cors = CorsConfig(allow_origins=["http://localhost:3000", "https://example.com"]
 app = HttpServer()
 
 app.middleware.after(CorsMiddleware(cors))
+
+app.auth(AuthMiddleware(lambda id: users_db.get(id, None)))
 
 # In-memory database
 users_db = {
@@ -38,7 +42,7 @@ def list_users(req: Request) -> Response:
     return Response.json(list(users_db.values()))
 
 
-@app.route("GET", "/users/{id}")
+@app.route("GET", "/users/{id}", protected=True)
 def get_user(req: Request) -> Response:
     user_id = req.path_params["id"]
     user = users_db.get(user_id)
@@ -103,7 +107,12 @@ def update_user(req: Request) -> Response:
     return Response.json(user)
 
 
-@app.route("DELETE", "/users/{id}")
+def is_admin(req: Request):
+    if not req.user or req.user["role"] != "admin":
+        raise Forbidden()
+
+
+@app.route("DELETE", "/users/{id}", protected=True, guard=is_admin)
 def delete_user(req: Request) -> Response:
     user_id = req.path_params["id"]
     if user_id not in users_db:

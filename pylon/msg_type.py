@@ -1,6 +1,7 @@
 import json
 from email.utils import formatdate
 
+from ._version import __version__
 from .cache import CacheConfig
 from .status import HttpStatus
 
@@ -15,6 +16,7 @@ class Request:
         self.body: str | None = None
         self.path_params: dict[str, str] = {}
         self.query_params: dict[str, str | bool] = {}
+        self.user = None  # authenticated user
 
     def __str__(self) -> str:
         return self.raw_request.decode(errors="replace")
@@ -48,7 +50,7 @@ class Response:
     def _build_headers(self, content_length: int) -> str:
         default_headers = {
             "Date": formatdate(timeval=None, localtime=False, usegmt=True),
-            "Server": "Pylon/1.0",
+            "Server": f"{__version__}",
         }
 
         if content_length > 0:

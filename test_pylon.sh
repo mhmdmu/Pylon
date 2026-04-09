@@ -45,6 +45,27 @@ if command -v xh &>/dev/null; then
     echo "--- CORS: Actual request from disallowed origin (no Access-Control-Allowed-Origin header)"
     xh GET localhost:8080/users \
         Origin:http://not-allowed.com
+
+    #
+    # Authentication tests
+    #
+    echo "--- GET protected route without token (should fail)"
+    xh GET localhost:8080/users/1
+
+    echo "--- GET protected route with valid user token"
+    xh GET localhost:8080/users/1 Authorization:"Bearer 2" # the token is simply the id
+
+    echo "--- GET protected route with invalid token (should fail)"
+    xh GET localhost:8080/users/1  Authorization:"Bearer "
+
+    #
+    # Authorization (admin-only) tests
+    #
+    echo "--- DELETE user with regular user token (should fail)"
+    xh DELETE localhost:8080/users/2 Authorization:"Bearer 2"
+
+    echo "--- DELETE user with admin token"
+    xh DELETE localhost:8080/users/2 Authorization:"Bearer 1"
 else
     echo "--- GET all users"
     curl -s localhost:8080/users
@@ -98,4 +119,31 @@ else
     curl -s http://localhost:8080/users \
         -H "Origin: http://not-allowed.com" \
         -i
+
+    # -------------------------
+    # Authentication tests
+    # -------------------------
+
+    echo "--- GET protected route without token (should fail)"
+    curl -s -X GET http://localhost:8080/users/1 -i
+
+    echo "--- GET protected route with valid user token"
+    curl -s -X GET http://localhost:8080/users/1 \
+        -H "Authorization: Bearer 2" -i
+
+    echo "--- GET protected route with invalid token (should fail)"
+    curl -s -X GET http://localhost:8080/users/1 \
+        -H "Authorization: Bearer " -i
+
+    # -------------------------
+    # Authorization (admin-only) tests
+    # -------------------------
+
+    echo "--- DELETE user with regular user token (should fail)"
+    curl -s -X DELETE http://localhost:8080/users/2 \
+        -H "Authorization: Bearer 2" -i
+
+    echo "--- DELETE user with admin token"
+    curl -s -X DELETE http://localhost:8080/users/2 \
+        -H "Authorization: Bearer 1" -i
 fi

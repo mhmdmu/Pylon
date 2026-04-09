@@ -168,6 +168,52 @@ cors = CorsConfig(allow_origins=["*"])
 app.middleware.after(CorsMiddleware(cors))
 ```
 
+## Authentication
+
+Pylon supports **authentication with per-route protection** using `AuthMiddleware`.
+
+`AuthMiddleware` parses the `Authorization` header to extract a Bearer token and calls a `verify` function to validate it and populate `request.user`.
+
+You attach it to your server via `HttpServer.auth(...)`:
+
+```python
+from pylon import AuthMiddleware
+
+def verify(token):
+    # Implement your token verification logic here
+    # On failure
+    raise Unauthorized()
+    # On Success
+    return user
+
+app.auth(AuthMiddleware(verify))
+```
+Routes can then be marked as `protected=True` to require authentication.
+```python
+@app.route("GET", "/protected", protected=True)
+def some_handler(...): ...
+```
+
+## Authorization
+Pylon supports route-level authorization using guard functions.
+A guard function is a callable that receives the `request` object and raises a `Forbidden` exception if the user does not have permission to access the route. Guards are executed after authentication.
+
+Example: Admin-only route
+
+```python
+from pylon import Forbidden
+
+def is_admin(req):
+    if not req.user or req.user.get("role") != "admin":
+        raise Forbidden("You do not have permission to perform this action")
+
+@app.route("DELETE", "/users/{id}", protected=True, guard=is_admin)
+def delete_user(req):
+    user_id = req.path_params["id"]
+    # Your deletion logic here
+    return Response.json({"status": "deleted"})
+
+```
 ## Request
 
 | Attribute | Type | Description |
@@ -178,6 +224,7 @@ app.middleware.after(CorsMiddleware(cors))
 | `body` | `str \| None` | Body for POST, PUT, PATCH |
 | `path_params` | `dict` | Dynamic route segments |
 | `query_params` | `dict` | Query string key-value pairs |
+| `user` | `any` | Authenticated user |
 
 ## Response
 
@@ -216,6 +263,8 @@ def get_user(req: Request) -> Response:
 | `BadRequest` | 400 |
 | `NotFound` | 404 |
 | `MethodNotAllowed` | 405 |
+| `Unauthorized` | 401 |
+| `Forbidden` | 403 |
 | `HttpError(status, message)` | any |
 
 Unhandled exceptions are caught, logged with a full traceback, and returned as `500 Internal Server Error`.
@@ -246,7 +295,7 @@ Log output looks like:
 - [x] Caching — `Cache-Control` and `ETag` headers, return `304` when unchanged
 - [x] Concurrency — `threading.Thread` per connection
 - [x] Timeouts — `conn.settimeout(5)`
-- [ ] Auth — parse and validate `Authorization` header
+- [x] Auth — parse and validate `Authorization` header
 
 ## Demo
 
