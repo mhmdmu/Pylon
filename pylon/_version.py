@@ -1,1 +1,1 @@
-__version__ = "Pylon/0.4.0"
+__version__ = "Pylon/0.5.0"
