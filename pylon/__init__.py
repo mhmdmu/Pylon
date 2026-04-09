@@ -1,6 +1,13 @@
 from .cache import CacheConfig
 from .cors import CorsConfig
-from .exceptions import BadRequest, HttpError, MethodNotAllowed, NotFound
+from .exceptions import (
+    BadRequest,
+    Forbidden,
+    HttpError,
+    MethodNotAllowed,
+    NotFound,
+    Unauthorized,
+)
 from .framework import HttpServer, configure_logging
 from .middleware import AuthMiddleware, CorsMiddleware
 from .msg_type import Request, Response
@@ -20,4 +27,6 @@ __all__ = [
     "BadRequest",
     "NotFound",
     "MethodNotAllowed",
+    "Forbidden",
+    "Unauthorized",
 ]

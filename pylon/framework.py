@@ -112,7 +112,7 @@ def _resolve(routes: dict, request: Request) -> tuple:
     for route in method_routes:
         matched, params = _match_route(route["pattern"], request.path)
         if matched:
-            return route["handler"], params, route["protected"]
+            return route["handler"], params, route["protected"], route["guard"]
 
     raise NotFound(f"Resource {request.path} not found")
 
@@ -182,7 +182,7 @@ class HttpServer:
         self.middleware = MiddlewarePipeline(self)
         self._auth_middleware = None
 
-    def route(self, method: str, path: str, protected: bool = False):
+    def route(self, method: str, path: str, protected: bool = False, guard=None):
         """Decorator to register a route handler."""
         method = method.upper()
 
@@ -190,7 +190,12 @@ class HttpServer:
             log.info(f"Registering route: {method} {path} -> {handler.__name__}")
 
             self._routes.setdefault(method, []).append(
-                {"pattern": path, "handler": handler, "protected": protected}
+                {
+                    "pattern": path,
+                    "handler": handler,
+                    "protected": protected,
+                    "guard": guard,
+                }
             )
             return handler
 
@@ -216,12 +221,16 @@ class HttpServer:
             for stage in self._before_middlewares:
                 request = stage(request)
 
-            handler, params, protected = _resolve(self._routes, request)
+            handler, params, protected, guard = _resolve(self._routes, request)
             request.path_params = params
 
             # Authentication
             if protected and self._auth_middleware:
                 request = self._auth_middleware(request)
+
+            # Authorization
+            if guard:
+                guard(request)
 
             response = handler(request)
         except MethodNotAllowed:
